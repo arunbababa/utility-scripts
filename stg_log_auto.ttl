@@ -1,0 +1,177 @@
+; Tera Term macro: STG log viewer
+;
+; What is "sendln"?
+;   sendln sends text to the open terminal and presses Enter.
+;   Example: sendln 'ssh host1' is the same as typing "ssh host1" and Enter.
+;
+; File split:
+;   stg_log_auto.ttl  = Tera Term side. It logs in, uploads the helper, and answers prompts.
+;   remote_stg_log.sh = Server side. It lists pods, asks which pod to use, and tails logs.
+;
+; Security:
+;   Passwords are asked at runtime. Do not write passwords in this file.
+;   For a public repo, keep the values below as placeholders.
+
+; ===== Values to set on the company PC =====
+BASTION_HOST = '<BASTION_HOST>'
+APP_HOST = '<APP_HOST>'
+RC_USER = 'rcuser'
+
+FRONT_NAMESPACE = '<FRONT_NAMESPACE>'
+BACK_NAMESPACE = '<BACK_NAMESPACE>'
+
+; Used only to narrow down the pod candidate list.
+; The user still chooses the exact pod interactively.
+FRONT_POD_PATTERN = '<FRONT_POD_NAME_KEYWORD>'
+BACK_POD_PATTERN = '<BACK_POD_NAME_KEYWORD>'
+
+FRONT_LOG_DIR = '<FRONT_LOG_DIR>'
+BACK_LOG_DIR = '<BACK_LOG_DIR>'
+
+FRONT_LOG_GLOB = '<FRONT_LOG_FILE_GLOB>'
+BACK_LOG_GLOB = '<BACK_LOG_FILE_GLOB>'
+
+TAIL_LINES = '120'
+
+; Keep remote_stg_log.sh in the same folder as this macro.
+; If Tera Term cannot find it, enter the absolute path when prompted.
+LOCAL_REMOTE_SCRIPT = 'remote_stg_log.sh'
+REMOTE_SCRIPT = '/tmp/stg_log_auto.sh'
+
+; ===== Runtime input =====
+getenv 'USERNAME' default_user
+
+inputbox 'LDAP user' 'STG log macro' default_user
+LDAP_USER = inputstr
+if LDAP_USER = '' then
+    messagebox 'LDAP user is required.' 'STG log macro'
+    end
+endif
+
+passwordbox 'LDAP password. This is also used for node SSH.' 'STG log macro'
+LDAP_PASS = inputstr
+if LDAP_PASS = '' then
+    messagebox 'LDAP password is required.' 'STG log macro'
+    end
+endif
+
+passwordbox 'rcuser password.' 'STG log macro'
+RC_PASS = inputstr
+if RC_PASS = '' then
+    messagebox 'rcuser password is required.' 'STG log macro'
+    end
+endif
+
+inputbox 'Target: front or back' 'STG log macro' 'front'
+TARGET = inputstr
+if TARGET = '' then
+    TARGET = 'front'
+endif
+
+inputbox 'Path to remote_stg_log.sh' 'STG log macro' LOCAL_REMOTE_SCRIPT
+LOCAL_REMOTE_SCRIPT = inputstr
+if LOCAL_REMOTE_SCRIPT = '' then
+    messagebox 'remote_stg_log.sh path is required.' 'STG log macro'
+    end
+endif
+
+; ===== 1. Connect to the bastion host =====
+; connect opens the first SSH session from Tera Term.
+sprintf2 conn_cmd '%s /ssh /2 /auth=password /user=%s /passwd=%s' BASTION_HOST LDAP_USER LDAP_PASS
+connect conn_cmd
+if result = 0 then
+    messagebox 'Failed to connect to bastion.' 'STG log macro'
+    end
+endif
+call wait_shell_prompt
+
+; ===== 2. SSH from bastion to the app-operation host =====
+sprintf2 cmd 'ssh %s' APP_HOST
+sendln cmd
+call handle_ssh_login_with_ldap
+call wait_shell_prompt
+
+; ===== 3. Switch to rcuser =====
+sprintf2 cmd 'su - %s' RC_USER
+sendln cmd
+wait 'Password:' 'password:'
+sendln RC_PASS
+call wait_shell_prompt
+
+; ===== 4. Upload the readable helper script to /tmp =====
+; The quoted heredoc prevents $VARIABLES in the shell script from expanding while uploading.
+sendln 'cat > /tmp/stg_log_auto.sh <<''STG_LOG_AUTO_EOF'''
+sendfile LOCAL_REMOTE_SCRIPT 0
+sendln ''
+sendln 'STG_LOG_AUTO_EOF'
+sendln 'chmod 700 /tmp/stg_log_auto.sh'
+call wait_shell_prompt
+
+; ===== 5. Run the helper with front/back settings =====
+; The helper script asks for the pod after showing candidates.
+sprintf2 cmd 'env FRONT_NAMESPACE="%s" BACK_NAMESPACE="%s" FRONT_POD_PATTERN="%s" BACK_POD_PATTERN="%s" FRONT_LOG_DIR="%s" BACK_LOG_DIR="%s" FRONT_LOG_GLOB="%s" BACK_LOG_GLOB="%s" TAIL_LINES="%s" %s %s' FRONT_NAMESPACE BACK_NAMESPACE FRONT_POD_PATTERN BACK_POD_PATTERN FRONT_LOG_DIR BACK_LOG_DIR FRONT_LOG_GLOB BACK_LOG_GLOB TAIL_LINES REMOTE_SCRIPT TARGET
+sendln cmd
+call handle_script_interaction
+
+; Leave the terminal open with the log output visible.
+end
+
+; ===== Utility: wait until a shell prompt appears =====
+:wait_shell_prompt
+    wait '$ ' '# ' '> '
+return
+
+; ===== Utility: answer SSH password / first-connect prompts =====
+:handle_ssh_login_with_ldap
+    while 1
+        wait 'continue connecting' 'password:' 'Password:' '$ ' '# ' '> ' 'Permission denied' 'No route to host' 'Could not resolve hostname'
+        if result = 1 then
+            sendln 'yes'
+        elseif result = 2 then
+            sendln LDAP_PASS
+        elseif result = 3 then
+            sendln LDAP_PASS
+        elseif result = 4 then
+            return
+        elseif result = 5 then
+            return
+        elseif result = 6 then
+            return
+        elseif result = 7 then
+            messagebox 'SSH permission denied.' 'STG log macro'
+            end
+        elseif result = 8 then
+            messagebox 'SSH failed: No route to host.' 'STG log macro'
+            end
+        elseif result = 9 then
+            messagebox 'SSH failed: Could not resolve hostname.' 'STG log macro'
+            end
+        else
+            return
+        endif
+    endwhile
+return
+
+; ===== Utility: handle the helper script's interactive prompts =====
+:handle_script_interaction
+    while 1
+        wait 'POD_SELECT>' 'continue connecting' 'password:' 'Password:' 'STG_LOG_AUTO_EXIT=0' 'STG_LOG_AUTO_EXIT='
+        if result = 1 then
+            inputbox 'Pod number, exact pod name, or search keyword. Empty means 1.' 'STG log macro' '1'
+            sendln inputstr
+        elseif result = 2 then
+            sendln 'yes'
+        elseif result = 3 then
+            sendln LDAP_PASS
+        elseif result = 4 then
+            sendln LDAP_PASS
+        elseif result = 5 then
+            return
+        elseif result = 6 then
+            messagebox 'Remote script finished with an error. Check the terminal output.' 'STG log macro'
+            return
+        else
+            return
+        endif
+    endwhile
+return
