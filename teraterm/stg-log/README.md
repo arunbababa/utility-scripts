@@ -21,21 +21,31 @@ sendln 'ssh host1'
 ## 実行前に設定する場所
 
 `stg_log_auto.ttl`の先頭にある以下の値を、会社PC上で実環境の値に置き換えます。
+公開repoでは、値の意味が外から読みにくいように短い符号にしています。
 
 ```ttl
-BASTION_HOST = '<BASTION_HOST>'
-APP_HOST = '<APP_HOST>'
-FRONT_NAMESPACE = '<FRONT_NAMESPACE>'
-BACK_NAMESPACE = '<BACK_NAMESPACE>'
-FRONT_POD_PATTERN = '<FRONT_POD_NAME_KEYWORD>'
-BACK_POD_PATTERN = '<BACK_POD_NAME_KEYWORD>'
-FRONT_LOG_DIR = '<FRONT_LOG_DIR>'
-BACK_LOG_DIR = '<BACK_LOG_DIR>'
-FRONT_LOG_GLOB = '<FRONT_LOG_FILE_GLOB>'
-BACK_LOG_GLOB = '<BACK_LOG_FILE_GLOB>'
+BASTION_HOST = '<H_B>'
+APP_HOST = '<H_A>'
+FRONT_NAMESPACE = '<N_F>'
+BACK_NAMESPACE = '<N_B>'
+FRONT_POD_PATTERN = '<P_F>'
+BACK_POD_PATTERN = '<P_B>'
+FRONT_LOG_DIR = '<D_F>'
+BACK_LOG_DIR = '<D_B>'
+FRONT_LOG_GLOB = '<G_F>'
+BACK_LOG_GLOB = '<G_B>'
 ```
 
 パスワードはファイルに書きません。実行時に入力します。
+
+符号の意味:
+
+- `H_B`: 最初にTera Termから入る踏み台
+- `H_A`: 踏み台からSSHする操作用ホスト
+- `N_F` / `N_B`: front/backのnamespace
+- `P_F` / `P_B`: front/backのPod名を絞るキーワード
+- `D_F` / `D_B`: front/backのログディレクトリ
+- `G_F` / `G_B`: front/backのログファイルglob
 
 ## 処理の流れ
 
