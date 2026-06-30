@@ -1,160 +1,141 @@
 # stg_log_auto.ttl Line-by-Line Guide
 
-This guide explains what the macro is doing. Line numbers refer to `stg_log_auto.ttl`.
+This guide explains the simplified macro. Line numbers refer to `stg_log_auto.ttl`.
 
 ## Start Assumption
 
-This macro starts **after** you manually log in to the bastion in Tera Term.
-
-You do this manually:
+Run this macro only after manual bastion login:
 
 1. Open Tera Term.
-2. Use the host value already shown in the host field.
+2. Use the host already shown in the host field.
 3. Type the LDAP password yourself.
 4. Reach the bastion shell prompt.
-5. Run this macro from `Control -> Macro`.
+5. Run `Control -> Macro`.
 
-The macro does not create a file on the bastion or app host.
+The macro does not put any file on the bastion, app host, or node.
 
-## Header
+## Lines 1-10: Header
 
 - Line 1: Names the macro.
-- Lines 3-7: State the correct start point: manual Tera Term login first, macro second.
-- Lines 9-10: State the important design rule: no server-side file placement.
+- Lines 3-7: Document the manual Tera Term login start point.
+- Lines 9-10: State that the macro sends commands only and does not place files on servers.
 
-## Local Settings
+## Lines 12-25: Fixed Local Settings
 
-- Line 12: Starts the local setting section.
+- Line 12: Starts values that must be filled on the company PC.
 - Line 13: `APP_HOST` is the host reached by SSH from the bastion.
-- Line 14: `RC_USER` is the OS user switched to after entering the app host.
-- Lines 16-17: `FRONT_NAMESPACE` and `BACK_NAMESPACE` choose the Kubernetes namespace per target.
-- Lines 19-20: Explain that the pod keyword only narrows candidates; the user still chooses.
-- Lines 21-22: `FRONT_POD_PATTERN` and `BACK_POD_PATTERN` are pod-name keywords.
-- Lines 24-25: `FRONT_LOG_DIR` and `BACK_LOG_DIR` are the log directories on the selected node.
-- Lines 27-28: `FRONT_LOG_GLOB` and `BACK_LOG_GLOB` are filename patterns for log files.
-- Line 30: `TAIL_LINES` controls how many lines are shown from the newest log.
+- Line 14: `RC_USER` is the account used by `su -`.
+- Lines 16-17: front/back Kubernetes namespaces.
+- Lines 19-20: front/back fixed log directories.
+- Lines 22-23: front/back log filename patterns.
+- Line 25: Number of lines to show from the newest log.
 
-## Runtime Prompts
+## Lines 27-46: Runtime Inputs
 
-- Line 32: Starts values that are entered each run.
-- Line 33: Opens a password dialog for the LDAP password used later by SSH.
-- Line 34: Stores the entered LDAP password in `LDAP_PASS`.
-- Lines 35-38: Stop the macro if the LDAP password is empty.
-- Line 40: Opens a password dialog for the `rcuser` password.
-- Line 41: Stores the entered `rcuser` password in `RC_PASS`.
-- Lines 42-45: Stop the macro if the `rcuser` password is empty.
-- Line 47: Asks whether the target is `front` or `back`.
-- Line 48: Stores the target in `TARGET`.
-- Lines 49-51: Defaults to `front` when the input is empty.
+- Line 28: Opens a password dialog for LDAP password used by later SSH commands.
+- Line 29: Stores that value in `LDAP_PASS`.
+- Lines 30-33: Stop if LDAP password is empty.
+- Line 35: Opens a password dialog for the `rcuser` password.
+- Line 36: Stores that value in `RC_PASS`.
+- Lines 37-40: Stop if `rcuser` password is empty.
+- Line 42: Asks whether target is `front` or `back`.
+- Line 43: Stores the answer in `TARGET`.
+- Lines 44-46: Default to `front` when empty.
 
-## Sync With Existing Bastion Login
+## Lines 48-50: Sync With Bastion Prompt
 
-- Lines 53-55: Document that the user has already logged in to the bastion manually.
-- Line 56: `sendln ''` sends an empty Enter key to refresh the shell prompt.
-- Line 57: Waits until the macro sees a shell prompt.
+- Line 48: Starts the sync step.
+- Line 49: Sends an empty Enter key to refresh the prompt.
+- Line 50: Waits until a shell prompt appears.
 
-## SSH To App Host
+## Lines 52-56: SSH To App Host
 
-- Line 59: Starts the app-host SSH step.
-- Line 60: Builds `ssh <H_A>` into variable `cmd`.
-- Line 61: Sends that SSH command to the current terminal.
-- Line 62: Handles SSH prompts such as password or first-connect confirmation.
-- Line 63: Waits until the app-host shell prompt appears.
+- Line 52: Starts the app-host SSH step.
+- Line 53: Builds `ssh <H_A>`.
+- Line 54: Sends that command to Tera Term.
+- Line 55: Handles LDAP password or first-connect prompts.
+- Line 56: Waits for the app-host shell prompt.
 
-## Switch To rcuser
+## Lines 58-63: Switch To rcuser
 
-- Line 65: Starts the user-switch step.
-- Line 66: Builds `su - rcuser`.
-- Line 67: Sends the `su` command.
-- Line 68: Waits for a password prompt.
-- Line 69: Sends the `rcuser` password.
-- Line 70: Waits until the `rcuser` shell prompt appears.
+- Line 58: Starts user switch.
+- Line 59: Builds `su - rcuser`.
+- Line 60: Sends that command.
+- Line 61: Waits for a password prompt.
+- Line 62: Sends the `rcuser` password.
+- Line 63: Waits for the `rcuser` prompt.
 
-## Export Settings
+## Lines 65-77: Choose Fixed front/back Values
 
-- Lines 72-73: Explain that settings are exported as shell variables, not files.
-- Line 74: Calls `export_runtime_values`.
-- Line 75: Waits until all export commands have returned to the prompt.
+- Line 65: Starts fixed value selection.
+- Line 66: Checks whether target is `front`.
+- Line 67: Uses front namespace.
+- Line 68: Uses front log directory.
+- Line 69: Uses front log file pattern.
+- Line 70: Checks whether target is `back`.
+- Line 71: Uses back namespace.
+- Line 72: Uses back log directory.
+- Line 73: Uses back log file pattern.
+- Lines 74-76: Stop if target is neither `front` nor `back`.
+- Line 77: Ends the condition.
 
-## Show Pod Candidates
+## Lines 79-82: Show Pod List
 
-- Lines 77-78: Explain the first inline shell block. It is sent to `sh` through standard input.
-- Line 79: Starts `sh <<'STG_LIST_EOF'`; the following lines are executed by `sh` without saving a file.
-- Line 80: `set -eu` makes the inline shell stop on errors or missing variables.
-- Lines 81-94: Choose namespace and pod keyword from `TARGET`.
-- Lines 95-97: Print target, namespace, and heading text.
-- Line 98: Runs `kubectl get pod -n "$NS" -o wide` to show the full pod list.
-- Lines 99-101: Print a heading for the narrowed candidate list.
-- Line 102: Runs `kubectl get pod`, keeps Running pods matching the keyword, and prints number, pod name, status, and node.
-- Line 103: Ends the inline shell block.
-- Line 104: Waits until the shell prompt returns.
+- Line 79: Starts pod list display.
+- Line 80: Builds `kubectl get pod -n "<namespace>" -o wide`.
+- Line 81: Sends that command.
+- Line 82: Waits for the prompt after the pod list is displayed.
 
-## User Pod Selection
+The user reads the `NODE` column manually from this output.
 
-- Line 106: Starts the local pod-selection step.
-- Line 107: Opens a local input dialog.
-- Line 108: Stores the value in `POD_SELECT`.
-- Lines 109-111: Defaults to `1` when the input is empty.
-- Line 113: Builds `export POD_SELECT="<input>"`.
-- Line 114: Sends that export command to the app-host shell.
-- Line 115: Waits for the prompt.
+## Lines 84-90: Input Node Name
 
-## Resolve Pod, SSH Node, Tail Log
+- Line 84: Starts node input step.
+- Line 85: Opens an input dialog for the node name.
+- Line 86: Stores the input in `NODE_NAME`.
+- Lines 87-90: Stop if node name is empty.
 
-- Lines 117-118: Explain the second inline shell block.
-- Line 119: Starts another `sh <<'STG_RUN_EOF'` block; again, no file is saved.
-- Line 120: Uses strict shell behavior.
-- Lines 121-138: Choose namespace, pod keyword, log directory, and log file pattern from `TARGET`.
-- Line 139: Builds a Running pod list matching the chosen keyword.
-- Lines 140-144: If the keyword matched nothing, fallback to all Running pods in the namespace.
-- Lines 145-148: Stop if there are no Running pods.
-- Line 149: Reads `POD_SELECT`; default is `1`.
-- Lines 150-174: Resolve the user's selection into an exact pod name.
-- Lines 151-166: Text input path: exact pod name first, then partial pod-name match.
-- Lines 167-173: Numeric input path: pick the displayed candidate number.
-- Line 175: Uses `kubectl ... -o jsonpath='{.spec.nodeName}'` to get the node name for the selected pod.
-- Lines 176-179: Stop if no node was found.
-- Lines 180-182: Print the selected pod, selected node, and next action.
-- Lines 183-196: SSH to the node, change to the log directory, list recent matching logs, choose the newest one, and tail it.
-- Line 197: Ends the inline shell block.
-- Line 198: Handles the node SSH password prompt and waits for the shell prompt.
-- Lines 200-201: Leave the Tera Term window open after log output is shown.
+## Lines 92-108: SSH To Node And Tail Fixed Log
 
-## wait_shell_prompt
+- Line 92: Starts node SSH and log display.
+- Line 93: Builds `ssh <NODE_NAME>`.
+- Line 94: Sends the node SSH command.
+- Line 95: Handles LDAP password or first-connect prompts.
+- Line 96: Waits for the node shell prompt.
+- Line 98: Builds `cd "<fixed log directory>"`.
+- Line 99: Sends the `cd` command.
+- Line 100: Waits for the prompt.
+- Line 102: Sends `pwd` so the current directory is visible.
+- Line 103: Builds `ls -ltr <fixed log glob> | tail -20`.
+- Line 104: Sends the `ls` command.
+- Line 105: Waits for the prompt.
+- Line 107: Builds a command that finds the newest matching log and tails it.
+- Line 108: Sends the tail command.
 
-- Line 203: Starts the helper section.
-- Line 204: Defines the label `wait_shell_prompt`.
-- Line 205: Waits for common shell prompt endings: `$`, `#`, or `>`.
-- Line 206: Returns to the caller.
+## Lines 110-111: End
 
-## export_runtime_values
+- Line 110: Comment that the terminal stays open.
+- Line 111: Ends the macro.
 
-- Line 208: Starts the export helper.
-- Line 209: Defines the label `export_runtime_values`.
-- Lines 210-211: Export `TARGET`.
-- Lines 212-213: Export `FRONT_NAMESPACE`.
-- Lines 214-215: Export `BACK_NAMESPACE`.
-- Lines 216-217: Export `FRONT_POD_PATTERN`.
-- Lines 218-219: Export `BACK_POD_PATTERN`.
-- Lines 220-221: Export `FRONT_LOG_DIR`.
-- Lines 222-223: Export `BACK_LOG_DIR`.
-- Lines 224-225: Export `FRONT_LOG_GLOB`.
-- Lines 226-227: Export `BACK_LOG_GLOB`.
-- Lines 228-229: Export `TAIL_LINES`.
-- Line 230: Returns to the caller.
+## Lines 113-116: wait_shell_prompt
 
-## handle_ssh_login_with_ldap
+- Line 113: Starts helper section.
+- Line 114: Defines `wait_shell_prompt`.
+- Line 115: Waits for common shell prompts: `$`, `#`, or `>`.
+- Line 116: Returns to caller.
 
-- Line 232: Starts the SSH prompt handler.
-- Line 233: Defines the label `handle_ssh_login_with_ldap`.
-- Line 234: Starts a loop so multiple prompts can be handled.
-- Line 235: Waits for first-connect confirmation, password prompts, shell prompts, or common SSH failures.
-- Lines 236-237: If SSH asks to continue connecting, send `yes`.
-- Lines 238-241: If SSH asks for a password, send `LDAP_PASS`.
-- Lines 242-247: If a shell prompt appears, return because login is done.
-- Lines 248-250: Stop with a message on permission failure.
-- Lines 251-253: Stop with a message when the route is unavailable.
-- Lines 254-256: Stop with a message when the host cannot be resolved.
-- Lines 257-259: Return on any unexpected non-error match.
-- Line 260: End the loop.
-- Line 261: Return to the caller.
+## Lines 118-147: handle_ssh_login_with_ldap
+
+- Line 118: Starts SSH prompt handler section.
+- Line 119: Defines `handle_ssh_login_with_ldap`.
+- Line 120: Starts loop.
+- Line 121: Waits for first-connect confirmation, password prompts, shell prompts, or common SSH errors.
+- Lines 122-123: If SSH asks to continue connecting, send `yes`.
+- Lines 124-127: If SSH asks for password, send `LDAP_PASS`.
+- Lines 128-133: If a shell prompt appears, return because SSH succeeded.
+- Lines 134-136: Stop on permission failure.
+- Lines 137-139: Stop on route failure.
+- Lines 140-142: Stop on hostname resolution failure.
+- Lines 143-145: Return for any other match.
+- Line 146: End loop.
+- Line 147: Return to caller.
