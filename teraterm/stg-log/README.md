@@ -54,18 +54,18 @@ BACK_LOG_GLOB = '<G_B>'
 5. `su - rcuser`でユーザー切り替え
 6. `front`または`back`に応じて固定のnamespace、ログディレクトリ、ログglobを選ぶ
 7. `kubectl get pod -n <namespace> -o wide`でPod一覧を表示
-8. ユーザーが`NODE`列のNode名を入力
-9. NodeへSSH
+8. Running Podの先頭行から`NODE`列を取得して`NODE_NAME`に入れる
+9. `ssh $NODE_NAME`でNodeへSSH
 10. 固定ログディレクトリへ移動
 11. 最新の`.log`を`tail -n 120`
 
-## Node入力
+## Node決定
 
-Podが複数ある前提ですが、マクロはPod名の解決までは行いません。
+マクロはPod名そのものを使いません。
 
-`kubectl get pod -n <namespace> -o wide`の出力を見て、対象Podの`NODE`列の値をinputboxへ入力します。
+`kubectl get pod -n <namespace> -o wide --no-headers`の出力から、最初のRunning Podの`NODE`列を使います。
 
-Node名さえ分かれば、その後のログディレクトリとログファイル名はfront/backごとに固定です。
+Node名が取れれば、その後のログディレクトリとログファイル名はfront/backごとに固定です。
 
 ## 以前の読みにくい記述について
 

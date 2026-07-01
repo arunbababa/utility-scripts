@@ -76,22 +76,17 @@ else
     end
 endif
 
-; ===== 4. Show pods so the user can read the NODE column =====
+; ===== 4. Show pods and reuse the first Running pod's NODE column =====
 sprintf2 cmd 'kubectl get pod -n "%s" -o wide' NAMESPACE
 sendln cmd
 call wait_shell_prompt
 
-; ===== 5. User inputs the node name from the kubectl NODE column =====
-inputbox 'Input NODE name from the kubectl output.' 'STG log macro'
-NODE_NAME = inputstr
-if NODE_NAME = '' then
-    messagebox 'NODE name is required.' 'STG log macro'
-    end
-endif
-
-; ===== 6. SSH to the node and show the latest fixed log =====
-sprintf2 cmd 'ssh %s' NODE_NAME
+sprintf2 cmd "NODE_NAME=$(kubectl get pod -n %s -o wide --no-headers 2>/dev/null | awk '$3 ~ /^Running$/ { print $7; exit }'); echo NODE_NAME=$NODE_NAME" NAMESPACE
 sendln cmd
+call wait_shell_prompt
+
+; ===== 5. SSH to the node and show the latest fixed log =====
+sendln 'ssh $NODE_NAME'
 call handle_ssh_login_with_ldap
 call wait_shell_prompt
 

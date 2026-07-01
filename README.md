@@ -10,4 +10,4 @@ Small personal utility scripts and Tera Term macros.
 
 ## Contents
 
-- `teraterm/stg-log/` - interactive Tera Term macro template that starts after manual bastion login, selects a Kubernetes Pod, and tails the latest log on the corresponding Node.
+- `teraterm/stg-log/` - interactive Tera Term macro template that starts after manual bastion login, reuses the NODE column from the first Running Kubernetes Pod, and tails the latest fixed log on that Node.

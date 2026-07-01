@@ -79,63 +79,58 @@ The macro does not put any file on the bastion, app host, or node.
 - Lines 74-76: Stop if target is neither `front` nor `back`.
 - Line 77: Ends the condition.
 
-## Lines 79-82: Show Pod List
+## Lines 79-86: Show Pod List And Pick Node
 
 - Line 79: Starts pod list display.
 - Line 80: Builds `kubectl get pod -n "<namespace>" -o wide`.
 - Line 81: Sends that command.
 - Line 82: Waits for the prompt after the pod list is displayed.
+- Line 84: Builds a command that extracts the first Running pod's NODE column into `NODE_NAME`.
+- Line 85: Sends that command.
+- Line 86: Waits for the prompt after `NODE_NAME` is printed.
 
-The user reads the `NODE` column manually from this output.
+The macro reuses the NODE value that appears in the `kubectl -o wide` output.
 
-## Lines 84-90: Input Node Name
+## Lines 88-104: SSH To Node And Tail Fixed Log
 
-- Line 84: Starts node input step.
-- Line 85: Opens an input dialog for the node name.
-- Line 86: Stores the input in `NODE_NAME`.
-- Lines 87-90: Stop if node name is empty.
-
-## Lines 92-108: SSH To Node And Tail Fixed Log
-
-- Line 92: Starts node SSH and log display.
-- Line 93: Builds `ssh <NODE_NAME>`.
-- Line 94: Sends the node SSH command.
-- Line 95: Handles LDAP password or first-connect prompts.
-- Line 96: Waits for the node shell prompt.
-- Line 98: Builds `cd "<fixed log directory>"`.
-- Line 99: Sends the `cd` command.
+- Line 88: Starts node SSH and log display.
+- Line 89: Sends `ssh $NODE_NAME`.
+- Line 90: Handles LDAP password or first-connect prompts.
+- Line 91: Waits for the node shell prompt.
+- Line 93: Builds `cd "<fixed log directory>"`.
+- Line 94: Sends the `cd` command.
+- Line 95: Waits for the prompt.
+- Line 97: Sends `pwd` so the current directory is visible.
+- Line 98: Builds `ls -ltr <fixed log glob> | tail -20`.
+- Line 99: Sends the `ls` command.
 - Line 100: Waits for the prompt.
-- Line 102: Sends `pwd` so the current directory is visible.
-- Line 103: Builds `ls -ltr <fixed log glob> | tail -20`.
-- Line 104: Sends the `ls` command.
-- Line 105: Waits for the prompt.
-- Line 107: Builds a command that finds the newest matching log and tails it.
-- Line 108: Sends the tail command.
+- Line 102: Builds a command that finds the newest matching log and tails it.
+- Line 103: Sends the tail command.
 
-## Lines 110-111: End
+## Lines 105-106: End
 
-- Line 110: Comment that the terminal stays open.
-- Line 111: Ends the macro.
+- Line 105: Comment that the terminal stays open.
+- Line 106: Ends the macro.
 
-## Lines 113-116: wait_shell_prompt
+## Lines 108-111: wait_shell_prompt
 
-- Line 113: Starts helper section.
-- Line 114: Defines `wait_shell_prompt`.
-- Line 115: Waits for common shell prompts: `$`, `#`, or `>`.
-- Line 116: Returns to caller.
+- Line 108: Starts helper section.
+- Line 109: Defines `wait_shell_prompt`.
+- Line 110: Waits for common shell prompts: `$`, `#`, or `>`.
+- Line 111: Returns to caller.
 
-## Lines 118-147: handle_ssh_login_with_ldap
+## Lines 113-142: handle_ssh_login_with_ldap
 
-- Line 118: Starts SSH prompt handler section.
-- Line 119: Defines `handle_ssh_login_with_ldap`.
-- Line 120: Starts loop.
-- Line 121: Waits for first-connect confirmation, password prompts, shell prompts, or common SSH errors.
-- Lines 122-123: If SSH asks to continue connecting, send `yes`.
-- Lines 124-127: If SSH asks for password, send `LDAP_PASS`.
-- Lines 128-133: If a shell prompt appears, return because SSH succeeded.
-- Lines 134-136: Stop on permission failure.
-- Lines 137-139: Stop on route failure.
-- Lines 140-142: Stop on hostname resolution failure.
-- Lines 143-145: Return for any other match.
-- Line 146: End loop.
-- Line 147: Return to caller.
+- Line 113: Starts SSH prompt handler section.
+- Line 114: Defines `handle_ssh_login_with_ldap`.
+- Line 115: Starts loop.
+- Line 116: Waits for first-connect confirmation, password prompts, shell prompts, or common SSH errors.
+- Lines 117-118: If SSH asks to continue connecting, send `yes`.
+- Lines 119-122: If SSH asks for password, send `LDAP_PASS`.
+- Lines 123-128: If a shell prompt appears, return because SSH succeeded.
+- Lines 129-131: Stop on permission failure.
+- Lines 132-134: Stop on route failure.
+- Lines 135-137: Stop on hostname resolution failure.
+- Lines 138-140: Return for any other match.
+- Line 141: End loop.
+- Line 142: Return to caller.
